@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install only production dependencies for leaner image.
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 COPY . .
 

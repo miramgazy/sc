@@ -19,7 +19,6 @@ export const createServer = async (bot: Bot) => {
   await server.register(fastifyStatic, {
     root: webappDistributionRoot,
     prefix: "/webapp/",
-    decorateReply: false,
   });
 
   server.setErrorHandler(async (error, request, response) => {

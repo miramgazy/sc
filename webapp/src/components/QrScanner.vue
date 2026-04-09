@@ -3,7 +3,7 @@
     <QrcodeStream
       v-if="isScanning"
       :constraints="{ facingMode: 'environment' }"
-      :formats="['qr_code', 'code_128']"
+      :formats="['qr_code', 'code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'code_93', 'itf', 'codabar']"
       @detect="onDetect"
       @init="onInit"
       :paused="!isScanning"
@@ -96,8 +96,6 @@ async function onInit(promise: Promise<void>) {
     error.value = errorMessage
   }
 }
-
-toggleScanner()
 </script>
 
 <style scoped>

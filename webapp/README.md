@@ -8,11 +8,7 @@
    npm i
    ```
 
-2. Configure web app env vars:
-
-   ```sh
-   cp .env.example .env
-   ```
+2. Configure env vars in repository root `.env` file.
 
    - `VITE_SCAN_WEBHOOK_URL` - optional URL to receive scan result payloads via POST.
    - If empty, the default inline-send behavior is used.
@@ -49,11 +45,7 @@
    npm i
    ```
 
-2. Configure production env vars (same as in development):
-
-   ```sh
-   cp .env.example .env
-   ```
+2. Configure production env vars in repository root `.env` file (same as in development).
 
 3. Build the app for production to the `dist` folder:
 

@@ -9,6 +9,19 @@
       :paused="!isScanning"
     />
 
+    <div v-if="isScanning" class="scanner-overlay" aria-hidden="true">
+      <div class="scan-window">
+        <div class="scan-corners">
+          <span class="corner corner-tl" />
+          <span class="corner corner-tr" />
+          <span class="corner corner-bl" />
+          <span class="corner corner-br" />
+        </div>
+        <span class="scan-line" />
+      </div>
+      <p class="scan-hint">Align QR or barcode inside the frame</p>
+    </div>
+
     <p v-if="loading && isScanning" class="loading-text">
       Loading camera...
     </p>
@@ -132,6 +145,101 @@ async function onInit(promise: Promise<void>) {
   z-index: 1;
 }
 
+.scanner-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 16px;
+  background: rgb(0 0 0 / 52%);
+}
+
+.scan-window {
+  position: relative;
+  width: min(78vw, 360px);
+  aspect-ratio: 1 / 1;
+  max-height: min(55vh, 360px);
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 16px;
+  box-shadow: 0 0 0 200vmax rgb(0 0 0 / 0%);
+  overflow: hidden;
+  background: transparent;
+}
+
+.scan-corners {
+  position: absolute;
+  inset: 0;
+}
+
+.corner {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-color: #effff2;
+  border-style: solid;
+  border-width: 0;
+}
+
+.corner-tl {
+  top: 0;
+  left: 0;
+  border-top-width: 4px;
+  border-left-width: 4px;
+  border-top-left-radius: 12px;
+}
+
+.corner-tr {
+  top: 0;
+  right: 0;
+  border-top-width: 4px;
+  border-right-width: 4px;
+  border-top-right-radius: 12px;
+}
+
+.corner-bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 4px;
+  border-left-width: 4px;
+  border-bottom-left-radius: 12px;
+}
+
+.corner-br {
+  right: 0;
+  bottom: 0;
+  border-right-width: 4px;
+  border-bottom-width: 4px;
+  border-bottom-right-radius: 12px;
+}
+
+.scan-line {
+  position: absolute;
+  left: 7%;
+  width: 86%;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(190 255 208 / 0%), rgb(190 255 208 / 92%), rgb(190 255 208 / 0%));
+  animation: scan-move 2.2s ease-in-out infinite;
+}
+
+.scan-hint {
+  margin: 0;
+  max-width: min(88vw, 420px);
+  text-align: center;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.35;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 38%);
+  backdrop-filter: blur(2px);
+}
+
 .loading-text,
 .error-text {
   position: absolute;
@@ -149,5 +257,29 @@ async function onInit(promise: Promise<void>) {
 .telegram-web-app-main-button {
   z-index: 100;
   margin-bottom: 20px;
+}
+
+@keyframes scan-move {
+  0% {
+    top: 10%;
+    opacity: 0.4;
+  }
+  50% {
+    top: calc(100% - 12%);
+    opacity: 1;
+  }
+  100% {
+    top: 10%;
+    opacity: 0.4;
+  }
+}
+
+@media (max-height: 720px) {
+  .scan-window {
+    width: min(72vw, 300px);
+  }
+  .scan-hint {
+    font-size: 13px;
+  }
 }
 </style>

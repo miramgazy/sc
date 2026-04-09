@@ -1,0 +1,1370 @@
+{
+  "name": "ScanTool",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qr_scan_tool",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -768,
+        512
+      ],
+      "id": "c9feb145-4ca6-4c20-b6cc-ca219fe468b3",
+      "name": "Webhook",
+      "webhookId": "7bde2018-3443-44a4-ab0e-01b82519e6cd"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"text\":\"Сіз іздеген тапсырыс табылды; id:  {{ $json.order_id }}\\nКлиенттің есімі - {{ $json.customer_name }}\\nТелефоны: +{{ $json.customer_phone }}\\nТапсырыс тізімі: {{ $json.order_items }}\\nОсы тапсырыстың Track номерін сканерлеп жіберіңіз\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        528,
+        128
+      ],
+      "id": "4dd14b9f-5a62-4bfa-b2e1-b33634e8e670",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Проходим по каждому входящему элементу (обычно он один)\nfor (const item of items) {\n    const body = item.json.body;\n\n    // 1. Получаем строку init_data\n    const initData = body.init_data;\n\n    // 2. Ищем и извлекаем часть \"user=...\"\n    const userMatch = initData.match(/user=(.*?)&/);\n\n    if (userMatch && userMatch[1]) {\n        const userJsonEncoded = userMatch[1];\n        const userJsonDecoded = decodeURIComponent(userJsonEncoded);\n\n        try {\n            const userObject = JSON.parse(userJsonDecoded);\n\n            // Добавляем данные о пользователе\n            item.json.sender_telegram_id = userObject.id;\n            item.json.sender_username = userObject.username;\n            item.json.sender_first_name = userObject.first_name;\n\n        } catch (e) {\n            console.error('Ошибка парсинга JSON объекта пользователя:', e);\n            item.json.error = 'Failed to parse user data from init_data';\n        }\n    } else {\n        console.warn('User data not found in init_data');\n        item.json.sender_telegram_id = null;\n    }\n\n    // --- Проверка текста из scan_result ---\n    const scanResult = body.scan_result?.trim();\n\n    if (scanResult) {\n        // Регулярки\n        const trackRegex = /^[A-Z]{2}\\d{9}[A-Z]{2}$/i; // трек: 2 буквы + 9 цифр + 2 буквы\n        const orderRegex = /^\\d+-\\d+$/;                // внутренний ID: цифры-цифры\n\n        if (trackRegex.test(scanResult)) {\n            item.json.scan_result_type = \"tracking_number\";\n        } else if (orderRegex.test(scanResult)) {\n            item.json.scan_result_type = \"order_id\";\n        } else {\n            item.json.scan_result_type = \"unknown\";\n        }\n\n        // Сохраняем сам текст для удобства\n        item.json.scan_result_value = scanResult;\n    } else {\n        item.json.scan_result_type = \"empty\";\n        item.json.scan_result_value = null;\n    }\n}\n\n// Возвращаем модифицированные элементы\nreturn items;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        512
+      ],
+      "id": "45b6389f-215f-4493-949e-2c57088c621a",
+      "name": "Decoder user data"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Decoder user data').item.json.sender_telegram_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        704,
+        128
+      ],
+      "id": "c284bcef-79bc-440c-92a1-b8d6dda5891c",
+      "name": "Send a text message",
+      "webhookId": "c1f18178-fed7-4837-af91-80c015c90a5c",
+      "credentials": {
+        "telegramApi": {
+          "id": "9tPtDZnkD35lUCTU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders SET processing_manager = '{{ $('Decoder user data').item.json.sender_username || \"\"}}', manager_tg_id = '{{ $('Decoder user data').item.json.sender_telegram_id }}'  WHERE order_id = '{{ $('Decoder user data').item.json.body.scan_result }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        128
+      ],
+      "id": "3ac8e611-a57e-4157-be67-f2ae860716bf",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "TbpZXE5TkHyJKgaH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT customer_name, customer_phone, order_items, city, address, postal_code, order_sum,order_id, track_number\nFROM orders\nWHERE order_id = '{{ $('Decoder user data').item.json.body.scan_result }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        80,
+        128
+      ],
+      "id": "d0d46983-89cc-4261-9fb2-c5dbc68ab5c8",
+      "name": "Select order by id",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "TbpZXE5TkHyJKgaH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT manager_tg_id, order_id, track_number\nFROM orders\nWHERE manager_tg_id = '{{ $json.sender_telegram_id }}' \n  AND track_number IS NULL;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        80,
+        512
+      ],
+      "id": "66a7eaba-760c-46e7-90ea-e3d191ec7153",
+      "name": "Is it in process",
+      "credentials": {
+        "postgres": {
+          "id": "TbpZXE5TkHyJKgaH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Decoder user data').item.json.scan_result_type }}",
+                    "rightValue": "order_id",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "29be0918-32af-4e87-b912-badc20d47169"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "order_id"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f098cf67-2032-4bf7-95b4-e3a5e4d67b62",
+                    "leftValue": "={{ $('Decoder user data').item.json.scan_result_type }}",
+                    "rightValue": "tracking_number",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Set tracking N"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "97fbb1c6-5105-41c8-8e10-150fd423668a",
+                    "leftValue": "={{ $('Decoder user data').item.json.scan_result_type }}",
+                    "rightValue": "unknown",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "unknown"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -208,
+        496
+      ],
+      "id": "d0752315-033b-481d-b124-12f010e1cb74",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"text\":\"Бұл тапсырыстың Tracking номері енгізіліп қойылған:  {{ $('Select order by id').item.json.track_number }}\\nКлиенттің есімі - {{ $json.customer_name }}\\nТелефоны: +{{ $json.customer_phone }}\\nТапсырыс тізімі: {{ $json.order_items }}\\nЕгер Tracking номері қате енгізіліп, қайта жаңарту керек болса, /update сөзін басыңыз да 20 секундың ішінде трэк номерді енгізіп үлгеріңіз\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        528,
+        304
+      ],
+      "id": "8acf7463-246d-4f0d-8e3a-385f80c5345e",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "101ggX0q12rE0fWch9NQKUEgJS2Vxl8p89rIYnl9_NcY",
+          "mode": "list",
+          "cachedResultName": "Orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/101ggX0q12rE0fWch9NQKUEgJS2Vxl8p89rIYnl9_NcY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/101ggX0q12rE0fWch9NQKUEgJS2Vxl8p89rIYnl9_NcY/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID заказа": "={{ $json.order_id }}",
+            "Track номер": "={{ $json.track_number }}"
+          },
+          "matchingColumns": [
+            "ID заказа"
+          ],
+          "schema": [
+            {
+              "id": "Имя клиента",
+              "displayName": "Имя клиента",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Номер клиента",
+              "displayName": "Номер клиента",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Дата заказа",
+              "displayName": "Дата заказа",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Список заказа",
+              "displayName": "Список заказа",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тип доставки",
+              "displayName": "Тип доставки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Город",
+              "displayName": "Город",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Адрес доставки",
+              "displayName": "Адрес доставки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Индекс",
+              "displayName": "Индекс",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Цена доставки",
+              "displayName": "Цена доставки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Сумма",
+              "displayName": "Сумма",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ID заказа",
+              "displayName": "ID заказа",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Статус заказа",
+              "displayName": "Статус заказа",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Track номер",
+              "displayName": "Track номер",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Банк",
+              "displayName": "Банк",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Номер чека",
+              "displayName": "Номер чека",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Отправитель",
+              "displayName": "Отправитель",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Дата оплаты",
+              "displayName": "Дата оплаты",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        512
+      ],
+      "id": "293f1f8c-69f3-41ee-93e7-75a18fb0e840",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "JQCfAN7t6oaGlGSB",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"text_to_costomer\":\"Сілеметсіз бе {{ $('Select order Data').item.json.customer_name }}, сіздің MedinaModa дүкенінен жасаған тапсырысыңыз;\\nНомері(id): {{ $('Select order Data').item.json.order_id }}\\nКүні: {{ $('Select order Data').item.json.order_date }}\\nТауарлар: {{ $('Select order Data').item.json.order_items }}\\nСізге пошта арқылы жіберілді, трэк номері: {{ $('Select order Data').item.json.track_number }}\\nМына сілтемеге өтіп, қадағалап отыра аласыз: https://post.kz/services/postal/{{ $('Select order Data').item.json.track_number }}\\nТапсырыс бергеніңіз үшін рахмет, біз сізді дүкенімізде қайта күтеміз!\",\n\"text_to_manager\":\"Тапсырыс id: {{ $json[\"ID заказа\"] }} бойынша \\nTracking номер бекітілді: {{ $json[\"Track номер\"] }}\"\n\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1152,
+        512
+      ],
+      "id": "445789b3-4d52-4233-b86b-d5ecd1829cba",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "Jarvis",
+        "remoteJid": "77779285899",
+        "messageText": "={{ $json.text_to_costomer }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api-en.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        368
+      ],
+      "id": "25bb64cf-76a6-4c8d-878b-3b02f8176c15",
+      "name": "Send text",
+      "credentials": {
+        "evolutionApi": {
+          "id": "aHc7I3Q2Uis85IUp",
+          "name": "Evolution account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -800,
+        1072
+      ],
+      "id": "17940443-4632-4c76-9608-975db5fc7cbc",
+      "name": "Telegram Trigger",
+      "webhookId": "00d003b2-843b-460d-9dd4-d5d4ee9c0071",
+      "credentials": {
+        "telegramApi": {
+          "id": "9tPtDZnkD35lUCTU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders SET track_number = '{{ $('Decoder user data').item.json.body.scan_result || \"\"}}' WHERE manager_tg_id = '{{ $('Decoder user data').item.json.sender_telegram_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        304,
+        512
+      ],
+      "id": "12c3ea4c-f476-46c0-91f0-89bd8407797b",
+      "name": "Insert TrackingN",
+      "credentials": {
+        "postgres": {
+          "id": "TbpZXE5TkHyJKgaH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT customer_name, customer_phone, order_items, city, address, postal_code, order_sum, order_id, track_number, order_date\nFROM orders\nWHERE order_id = '{{ $('Is it in process').item.json.order_id }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        752,
+        512
+      ],
+      "id": "35ed5562-613f-4f41-aa12-b63f1a90a98e",
+      "name": "Select order Data",
+      "credentials": {
+        "postgres": {
+          "id": "TbpZXE5TkHyJKgaH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Decoder user data').item.json.sender_telegram_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        304
+      ],
+      "id": "6bbeb238-115a-478c-9aa0-7fbd151b69e6",
+      "name": "Send a text message1",
+      "webhookId": "c1f18178-fed7-4837-af91-80c015c90a5c",
+      "credentials": {
+        "telegramApi": {
+          "id": "9tPtDZnkD35lUCTU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=order_id:{{ $json.result.chat.id }}",
+        "value": "={{ $('Decoder user data').item.json.body.scan_result }}",
+        "expire": true,
+        "ttl": 20
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        944,
+        304
+      ],
+      "id": "40a30467-5769-4484-8d3b-2d6f2332e96c",
+      "name": "Redis",
+      "credentials": {
+        "redis": {
+          "id": "C24TWTyocqkPMCrV",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "order_id",
+        "key": "=order_id:{{ $json.message.chat.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        1088
+      ],
+      "id": "c33d1bbc-8461-4f90-a7f8-a899ba1a2178",
+      "name": "Redis1",
+      "credentials": {
+        "redis": {
+          "id": "C24TWTyocqkPMCrV",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "24516a0d-3583-4d12-b2bf-5283486b3c77",
+              "leftValue": "={{ $json.order_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        1088
+      ],
+      "id": "ac3d3ac8-aa45-4466-8d22-04188d15543c",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders SET track_number = NULL WHERE order_id = '{{ $json.order_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        336,
+        992
+      ],
+      "id": "8a1da4f2-6029-4870-8dd6-b1c696237371",
+      "name": "Insert TrackingN1",
+      "credentials": {
+        "postgres": {
+          "id": "TbpZXE5TkHyJKgaH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"text\":\"Тапсырыс id: {{ $('If1').item.json.order_id }} бойынша бұрынғы трекинг номері: {{ $('Select order Data1').item.json.track_number }} өшірілді, қайта енгізуге дайын. Ол үшін жаңа трек кодты сканерлеп жіберіңіз.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        992
+      ],
+      "id": "1e9fa6d2-01e8-43d1-81a1-bf14a74fb5f5",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT customer_name, customer_phone, order_items, city, address, postal_code, order_sum, order_id, track_number, order_date\nFROM orders\nWHERE order_id = '{{ $json.order_id }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        112,
+        992
+      ],
+      "id": "659b5642-005d-4b25-8659-c00197d023f3",
+      "name": "Select order Data1",
+      "credentials": {
+        "postgres": {
+          "id": "TbpZXE5TkHyJKgaH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        768,
+        992
+      ],
+      "id": "cf9fa570-afea-4138-b0ef-9fa491b6c379",
+      "name": "Send a text message2",
+      "webhookId": "c1f18178-fed7-4837-af91-80c015c90a5c",
+      "credentials": {
+        "telegramApi": {
+          "id": "9tPtDZnkD35lUCTU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"text\":\"Cіз тапсырыстың трек номерін өзгертуді бастап едіңіз бе? Қай тапсырыс бойынша (id заказа). Қайтадан тапсырыстың QR кодын сканерлеп жіберіп, 20 секундтың ішінде жаңа трек номер қойып үлгеруіңіз қажет.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        1216
+      ],
+      "id": "ed969b2f-3bf8-4599-a99b-773cb1dda263",
+      "name": "Edit Fields5"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        528,
+        512
+      ],
+      "id": "232c2e2a-5e9d-405a-b05f-31d13c368bf7",
+      "name": "Wait",
+      "webhookId": "a88b3a72-c6f8-4187-b9dc-c7222e35ac5c"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Decoder user data').item.json.sender_telegram_id }}",
+        "text": "={{ $json.text_to_manager }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1536,
+        720
+      ],
+      "id": "6e30b18f-b556-418f-acc6-c39522840e96",
+      "name": "Send a text message3",
+      "webhookId": "c1f18178-fed7-4837-af91-80c015c90a5c",
+      "credentials": {
+        "telegramApi": {
+          "id": "9tPtDZnkD35lUCTU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "f3150248-de9c-487e-9838-fa7576b295a0"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "start"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "06c9b799-cd70-419c-9a8e-aeac62d8d8fc",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "update"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -592,
+        1072
+      ],
+      "id": "5663adef-203d-4ea6-9fb8-2a2009036eaa",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"text\":\"Medina Moda дүкенінің менеджерлеріне арналған бот. Бұл бот не істей алады;\\nТөмендегі QR Scan кнопкасын басу арқылы камераны қосып, QR-ға немесе Штрих кодқа бағыттап тапсырыстың Tracking номерін жібере аласыздар;\\n1. Тапсырыстың чегіндегі QR сканерлеп, Send кнопкасын басасыз, егер тапсырыс базада табылса екінші қадамға өтесіз\\n2. Алдыңғы қадамда жіберген тапсырыс id-іне енді трек номерін сканерлеу қажет.\\n\\nЕгер барлығы дұрыс өтсе, бот ол туралы хабар береді.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -336,
+        832
+      ],
+      "id": "b7e2d3cb-5b3b-4243-9e56-2f0763203016",
+      "name": "Edit Fields6"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n \"text_to_manager\":\"Тапсырыс id: {{ $json[\"ID заказа\"] }} бойынша \\nTracking номер бекітілді: {{ $json[\"Track номер\"] }}\"\n\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        128,
+        720
+      ],
+      "id": "0d1b2ebe-0e84-48ca-b33c-d111297fa2ae",
+      "name": "Edit Fields7"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0815dbc0-4ce7-4337-aef6-d47cc899036f",
+                    "leftValue": "={{ $json }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "empty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no_order"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.track_number }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "empty",
+                      "singleValue": true
+                    },
+                    "id": "96e5ec84-d4e1-4a69-8d5a-9fc6435ba2ba"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no tracking N"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e647c445-347c-4bfd-bf8d-da42ae213b8d",
+                    "leftValue": "={{ $json.track_number }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "change_tn"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        272,
+        112
+      ],
+      "id": "3e61b6e1-3ed0-421d-b967-042743312466",
+      "name": "Switch2"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"text\":\"Сіз жіберген id бойынша тапсырыс базада табылған жоқ. Оның себебі сканер QR кодты дұрыс оқымады, немесе ол тапсырыс расымен де базада жоқ, жіберген номердіңізді мұқият тексеріп қараңыз: {{ $('Decoder user data').item.json.body.scan_result }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        528,
+        -48
+      ],
+      "id": "be6c6913-f24e-47fc-ae13-387e7f775d20",
+      "name": "Edit Fields1"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "connection": "upgrade",
+            "host": "n8n.medinamoda.kz",
+            "content-length": "645",
+            "sec-ch-ua-platform": "\"Android\"",
+            "user-agent": "Mozilla/5.0 (Linux; Android 15; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.155 Mobile Safari/537.36 Telegram-Android/12.0.1 (Samsung SM-S906B; Android 15; SDK 35; HIGH)",
+            "sec-ch-ua": "\"Chromium\";v=\"140\", \"Not=A?Brand\";v=\"24\", \"Android WebView\";v=\"140\"",
+            "content-type": "application/json",
+            "sec-ch-ua-mobile": "?1",
+            "accept": "*/*",
+            "origin": "https://sc.medinamoda.kz",
+            "x-requested-with": "org.telegram.messenger",
+            "sec-fetch-site": "same-site",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://sc.medinamoda.kz/",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "scan_result": "CQ041993561KZ",
+            "init_data": "query_id=AAHCdiQaAAAAAMJ2JBrVWMk-&user=%7B%22id%22%3A438597314%2C%22first_name%22%3A%22Miramgazy%22%2C%22last_name%22%3A%22Ilyassov%22%2C%22username%22%3A%22miramgazy%22%2C%22language_code%22%3A%22ru%22%2C%22allows_write_to_pm%22%3Atrue%2C%22photo_url%22%3A%22https%3A%5C%2F%5C%2Ft.me%5C%2Fi%5C%2Fuserpic%5C%2F320%5C%2FOqquFa8EaZhSWkzchU1lbiFNxhIq1YxtGMTgcZhl7LY.svg%22%7D&auth_date=1759066399&signature=B3DaPL0EbEgMye930TcwiQ_vAQdwp7ZxOvdj30z5GhI6OQ3SZ3KNDIx3L2X2_HfFZClC2Uu3EYTQpeBtEMplAQ&hash=25de1b7a190ef266fc2b4a703b2c7550777f7f3b233db4b99f3a62795d44f2f3",
+            "timestamp": "2025-09-28T13:33:34.355Z"
+          },
+          "webhookUrl": "https://n8n.medinamoda.kz/webhook/qr_scan_tool",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Decoder user data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decoder user data": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select order by id": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is it in process": {
+      "main": [
+        [
+          {
+            "node": "Insert TrackingN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Select order by id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is it in process",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Send text",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert TrackingN": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select order Data": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message1": {
+      "main": [
+        [
+          {
+            "node": "Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Select order Data1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert TrackingN1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select order Data1": {
+      "main": [
+        [
+          {
+            "node": "Insert TrackingN1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields5": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Select order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redis1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields6": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9e8c6f85-a311-41c4-b8a6-724310144d8b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "35a244ddd6ab203c7c18fefa534e176dee9dfd99d5fdbee9abf6c9ab235df5ac"
+  },
+  "id": "fJ1607ETfWKdcWqF",
+  "tags": []
+}

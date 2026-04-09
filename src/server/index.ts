@@ -1,4 +1,6 @@
+import { fileURLToPath } from "node:url";
 import fastify from "fastify";
+import fastifyStatic from "@fastify/static";
 import { BotError, webhookCallback } from "grammy";
 import QRCode from "qrcode";
 import type { Bot } from "#root/bot/index.js";
@@ -9,6 +11,15 @@ import { config } from "#root/config.js";
 export const createServer = async (bot: Bot) => {
   const server = fastify({
     logger,
+  });
+  const webappDistributionRoot = fileURLToPath(
+    new URL("../../webapp/dist", import.meta.url),
+  );
+
+  await server.register(fastifyStatic, {
+    root: webappDistributionRoot,
+    prefix: "/webapp/",
+    decorateReply: false,
   });
 
   server.setErrorHandler(async (error, request, response) => {
@@ -24,6 +35,9 @@ export const createServer = async (bot: Bot) => {
   });
 
   server.get("/", () => ({ status: true }));
+  server.get("/webapp", async (_request, response) => {
+    await response.sendFile("index.html");
+  });
 
   server.get(`/${bot.token}`, async (request, response) => {
     const hostname = request.headers["x-forwarded-host"];

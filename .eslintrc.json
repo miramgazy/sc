@@ -63,6 +63,7 @@
     }
   },
   "ignorePatterns": [
-    "webapp/"
+    "webapp/",
+    "build/"
   ]
 }

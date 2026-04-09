@@ -74,7 +74,7 @@ cp .env.example .env
 
    Required values:
    - `BOT_TOKEN`
-   - `WEBAPP_URL`
+   - `WEBAPP_URL` (for single-container setup use `https://your-domain/webapp`)
    - `API_URL`
 
 2. Build and start container:

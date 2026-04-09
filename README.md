@@ -64,6 +64,47 @@ cp .env.example .env
     npm run start:force # if you want to skip type checking
     ```
 
+## Run with Docker
+
+1. Create and fill `.env`:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Required values:
+   - `BOT_TOKEN`
+   - `WEBAPP_URL`
+   - `API_URL`
+
+2. Build and start container:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+   Bot will be available locally on `http://localhost:8045`.
+
+3. Check logs:
+
+   ```bash
+   docker compose logs -f scan-tool-bot
+   ```
+
+4. Stop bot:
+
+   ```bash
+   docker compose down
+   ```
+
+## Deploy in Coolify
+
+1. Add repository in Coolify and select **Docker Compose** deployment type.
+2. Use `docker-compose.coolify.yml` as the compose file.
+3. Configure environment variables from `.env.example` in Coolify UI (`BOT_TOKEN`, `WEBAPP_URL`, `API_URL`, etc.).
+4. Set public domain in Coolify and route it to service port `80`.
+5. Deploy.
+
 ### List of available commands
 - `npm run lint` — Lint source code.
 - `npm run format` — Format source code.

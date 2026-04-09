@@ -8,7 +8,16 @@
    npm i
    ```
 
-2. Run the app in the development mode:
+2. Configure web app env vars:
+
+   ```sh
+   cp .env.example .env
+   ```
+
+   - `VITE_SCAN_WEBHOOK_URL` - optional URL to receive scan result payloads via POST.
+   - If empty, the default inline-send behavior is used.
+
+3. Run the app in the development mode:
 
    ```sh
    npm run dev
@@ -16,7 +25,7 @@
 
    The page will reload if you make edits.
 
-3. Update the `WEBAPP_URL` [environment variable](../README.md#environment-variables)
+4. Update the `WEBAPP_URL` [environment variable](../README.md#environment-variables)
 
     Since Telegram only accepts HTTPS URLs for Web Apps, you'll need to use a tunneling software like [serveo](https://serveo.net) or [ngrok](https://ngrok.com) ([list of tunnelling software and services](https://github.com/anderspitman/awesome-tunneling#readme)):
 
@@ -40,15 +49,21 @@
    npm i
    ```
 
-2. Build the app for production to the `dist` folder:
+2. Configure production env vars (same as in development):
+
+   ```sh
+   cp .env.example .env
+   ```
+
+3. Build the app for production to the `dist` folder:
 
    ```sh
    npm run build
    ```
 
-3. Deploy the `dist` folder to any static hosting provider.
+4. Deploy the `dist` folder to any static hosting provider.
 
-4. Set the [environment variable](../README.md#environment-variables) `WEBAPP_URL` to your link.
+5. Set the [environment variable](../README.md#environment-variables) `WEBAPP_URL` to your link.
 
 # Vue 3 + TypeScript + Vite
 

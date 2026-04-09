@@ -1,5 +1,6 @@
 <template>
   <QrScanner v-model:result="result" v-if="!result" />
+
   <main v-if="result" class="container-fluid">
     <ScanResult :value="result" />
   </main>

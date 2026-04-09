@@ -10,17 +10,17 @@
     />
 
     <p v-if="loading && isScanning" class="loading-text">
-      Loading camera...
+      Загрузка камеры...
     </p>
 
     <p v-else-if="error" class="error-text">
-      ERROR: {{ error }}
+      ОШИБКА: {{ error }}
     </p>
 
     <MainButton
       :disabled="false"
       :progress="loading && isScanning"
-      :text="isScanning ? 'Scanning... Tap to cancel' : 'Open scanner (QR / Barcode)'"
+      :text="isScanning ? 'Идет сканирование (Нажмите для отмены)' : 'Открыть сканер (QR / ШК)'"
       :color="themeParams.secondary_bg_color"
       :text-color="themeParams.text_color"
       @click="toggleScanner"
@@ -29,18 +29,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from 'vue'
 import { QrcodeStream } from 'vue-qrcode-reader'
 import {
   MainButton,
   useWebAppTheme,
   useWebAppHapticFeedback,
-} from 'vue-tg';
+} from 'vue-tg'
 
-defineProps<{ result: string | null }>()
-const emit = defineEmits<{
-  (event: 'update:result', value: string | null): void
-}>()
+// ✅ 1. Регистрируем пропс, но не присваиваем его переменной
+defineProps<{ result: string | null }>(); 
+const emit = defineEmits(['update:result']); 
 
 const loading = ref(false)
 const isScanning = ref(false)
@@ -54,53 +53,51 @@ function toggleScanner() {
   if (isScanning.value) {
     loading.value = true
     error.value = null
-    emit('update:result', null)
+    emit('update:result', null); 
   } else {
     loading.value = false
   }
 }
 
-function onDetect(detectedCodes: Array<{ rawValue?: string }>) {
-  if (!detectedCodes || detectedCodes.length === 0 || !isScanning.value) {
-    return
-  }
+function onDetect(detectedCodes: any[]) {
+  if (detectedCodes && detectedCodes.length > 0) {
+    const detected = detectedCodes[0]
 
-  const detectedValue = detectedCodes[0]?.rawValue
-  if (detectedValue && detectedValue.length > 5) {
-    impactOccurred('heavy')
-    emit('update:result', detectedValue)
-    isScanning.value = false
-    loading.value = false
+    if (detected.rawValue && detected.rawValue.length > 5 && isScanning.value) { 
+      impactOccurred('heavy')
+      
+      // ✅ 2. Явный вызов emit для обновления App.vue
+      emit('update:result', detected.rawValue); 
+      
+      isScanning.value = false
+      loading.value = false
+    }
   }
 }
 
 async function onInit(promise: Promise<void>) {
-  try {
-    await promise
-    loading.value = false
-  } catch (caughtError: unknown) {
-    loading.value = false
-    isScanning.value = false
+    try {
+        await promise
+        loading.value = false
+    } catch (err: any) {
+        loading.value = false
+        isScanning.value = false
 
-    let errorMessage = 'Unknown camera error.'
-    if (caughtError instanceof Error) {
-      if (caughtError.name === 'NotAllowedError') {
-        errorMessage = 'Camera permission was denied.'
-      } else if (caughtError.name === 'NotReadableError') {
-        errorMessage = 'Camera is already used by another app.'
-      } else if (caughtError.name === 'NotFoundError') {
-        errorMessage = 'No camera found on this device.'
-      }
+        let errorMessage = 'Неизвестная ошибка камеры.'
+        if (err.name === 'NotAllowedError') {
+            errorMessage = 'Доступ к камере запрещен пользователем.'
+        } else if (err.name === 'NotReadableError') {
+            errorMessage = 'Камера уже используется другим приложением.'
+        } else if (err.name === 'NotFoundError') {
+            errorMessage = 'Камера не найдена на устройстве.'
+        }
+        error.value = errorMessage
     }
-
-    error.value = errorMessage
-  }
 }
-
-toggleScanner()
 </script>
 
 <style scoped>
+/* Стили остаются прежними */
 .scanner-container {
   width: 100vw;
   height: 100vh;
@@ -142,7 +139,7 @@ toggleScanner()
   transform: translate(-50%, -50%);
   color: #fff;
   z-index: 50;
-  background-color: rgb(0 0 0 / 70%);
+  background-color: rgba(0, 0, 0, 0.7);
   padding: 10px 20px;
   border-radius: 5px;
   text-align: center;

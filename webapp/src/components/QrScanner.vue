@@ -1,10 +1,13 @@
 <template>
   <div class="scanner-container">
     <QrcodeStream
+      :key="cameraSessionKey"
       v-if="isScanning"
-      :constraints="{ facingMode: 'environment' }"
+      :constraints="cameraConstraints"
+      :torch="torchActive"
       :formats="['qr_code', 'data_matrix', 'code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'code_93', 'itf', 'codabar']"
       @detect="onDetect"
+      @camera-on="onCameraOn"
       @init="onInit"
       :paused="!isScanning"
     />
@@ -20,6 +23,15 @@
         <span class="scan-line" />
       </div>
       <p class="scan-hint">Align QR or barcode inside the frame</p>
+    </div>
+
+    <div v-if="isScanning" class="camera-controls">
+      <button class="camera-control-btn" type="button" @click="requestRefocus">
+        Focus
+      </button>
+      <button class="camera-control-btn" type="button" :disabled="!torchSupported" @click="toggleTorch">
+        {{ torchSupported ? (torchActive ? 'Flash off' : 'Flash on') : 'No flash' }}
+      </button>
     </div>
 
     <p v-if="loading && isScanning" class="loading-text">
@@ -42,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { QrcodeStream } from 'vue-qrcode-reader'
 import {
   MainButton,
@@ -58,19 +70,56 @@ const emit = defineEmits<{
 const loading = ref(false)
 const isScanning = ref(false)
 const error = ref<string | null>(null)
+const torchActive = ref(false)
+const torchSupported = ref(false)
+const cameraSessionKey = ref(0)
 
 const { impactOccurred } = useWebAppHapticFeedback()
 const { themeParams } = useWebAppTheme()
+const cameraConstraints = computed<MediaTrackConstraints>(() => ({
+  facingMode: 'environment',
+  width: { ideal: 1280 },
+  height: { ideal: 720 },
+  // Some devices only focus reliably after explicit focusMode hints.
+  advanced: [{ focusMode: 'continuous' }, { focusMode: 'auto' }] as unknown as MediaTrackConstraintSet[]
+}))
 
 function toggleScanner() {
   isScanning.value = !isScanning.value
   if (isScanning.value) {
     loading.value = true
     error.value = null
+    torchActive.value = false
     emit('update:result', null)
   } else {
     loading.value = false
+    torchActive.value = false
   }
+}
+
+function onCameraOn(capabilities: Partial<MediaTrackCapabilities> & { torch?: boolean }) {
+  try {
+    torchSupported.value = Boolean(capabilities.torch)
+    if (!torchSupported.value) {
+      torchActive.value = false
+    }
+  } catch {
+    torchSupported.value = false
+    torchActive.value = false
+  }
+}
+
+function toggleTorch() {
+  if (!torchSupported.value) {
+    return
+  }
+  torchActive.value = !torchActive.value
+}
+
+function requestRefocus() {
+  // QrcodeStream does not expose tap-to-focus directly, so we recreate stream.
+  cameraSessionKey.value += 1
+  impactOccurred('light')
 }
 
 function onDetect(detectedCodes: Array<{ rawValue?: string }>) {
@@ -257,6 +306,30 @@ async function onInit(promise: Promise<void>) {
 .telegram-web-app-main-button {
   z-index: 100;
   margin-bottom: 20px;
+}
+
+.camera-controls {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: 12px;
+  z-index: 60;
+  display: flex;
+  gap: 8px;
+}
+
+.camera-control-btn {
+  pointer-events: auto;
+  border: 1px solid rgb(255 255 255 / 35%);
+  color: #fff;
+  background: rgb(0 0 0 / 45%);
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.camera-control-btn:disabled {
+  opacity: 0.55;
 }
 
 @keyframes scan-move {

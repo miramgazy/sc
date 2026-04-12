@@ -301,11 +301,12 @@ async function onInit(promise: Promise<void>) {
 
 .camera-controls {
   position: absolute;
-  top: max(12px, env(safe-area-inset-top));
-  right: 12px;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 60;
   display: flex;
-  gap: 8px;
+  gap: 12px;
 }
 
 .camera-control-btn {
@@ -313,10 +314,10 @@ async function onInit(promise: Promise<void>) {
   border: 1px solid rgb(255 255 255 / 35%);
   color: #fff;
   background: rgb(0 0 0 / 45%);
-  padding: 8px 10px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 16px;
+  line-height: 1.2;
 }
 
 .camera-control-btn:disabled {

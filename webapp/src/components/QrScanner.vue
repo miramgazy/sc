@@ -314,9 +314,9 @@ async function onInit(promise: Promise<void>) {
   border: 1px solid rgb(255 255 255 / 35%);
   color: #fff;
   background: rgb(0 0 0 / 45%);
-  padding: 12px 18px;
-  border-radius: 12px;
-  font-size: 16px;
+  padding: 18px 28px;
+  border-radius: 16px;
+  font-size: 24px;
   line-height: 1.2;
 }
 

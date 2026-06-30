@@ -90,11 +90,11 @@ ready()
 
 <style scoped>
 .app-main {
-  padding: 16px;
+  padding: 32px 16px 16px 16px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   box-sizing: border-box;
 }
@@ -107,20 +107,20 @@ ready()
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 24px;
+  justify-content: flex-start;
+  gap: 20px;
   width: 100%;
-  max-width: 500px;
+  max-width: 420px;
   margin: 0 auto;
 }
 
 .selection-header {
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .selection-header h1 {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   margin: 0;
   color: var(--tg-theme-text-color, #333);
@@ -129,14 +129,14 @@ ready()
 .modes-grid {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
 }
 
 .mode-card {
   cursor: pointer;
-  padding: 24px;
-  border-radius: 16px;
+  padding: 16px 20px;
+  border-radius: 12px;
   background: var(--tg-theme-secondary-bg-color, #f4f4f4);
   border: 1px solid var(--tg-theme-hint-color, rgba(0, 0, 0, 0.08));
   text-align: center;
@@ -154,12 +154,13 @@ ready()
 }
 
 .mode-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
+  font-size: 32px;
+  margin-bottom: 8px;
 }
 
 .mode-card h2 {
-  font-size: 18px;
+  font-size: 15px;
+  font-weight: 600;
   margin: 0;
   color: var(--tg-theme-text-color, #333);
 }

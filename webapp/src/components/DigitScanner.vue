@@ -546,11 +546,12 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   min-height: 80vh;
   box-sizing: border-box;
   color: var(--tg-theme-text-color, #333);
+  padding-top: 16px;
 }
 
 /* Photo Selection Screen */
@@ -558,16 +559,16 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   width: 100%;
-  max-width: 450px;
+  max-width: 420px;
   padding: 16px;
 }
 
 .upload-card {
   width: 100%;
-  padding: 36px 20px;
-  border-radius: 16px;
+  padding: 24px 16px;
+  border-radius: 12px;
   border: 1px solid var(--tg-theme-hint-color, rgba(0, 0, 0, 0.1));
   background-color: var(--tg-theme-bg-color, #fff);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
@@ -575,22 +576,32 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   backdrop-filter: blur(10px);
 }
 
+.upload-card h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.upload-card p {
+  font-size: 13px;
+  margin: 0 0 8px 0;
+}
+
 .card-icon {
-  font-size: 54px;
-  margin-bottom: 8px;
+  font-size: 36px;
+  margin-bottom: 4px;
   animation: bounce 2s infinite alternate;
 }
 
 .upload-btn {
   width: 100%;
-  padding: 14px;
-  font-size: 16px;
+  padding: 10px 16px;
+  font-size: 14px;
   font-weight: 600;
-  border-radius: 10px;
+  border-radius: 8px;
   border: none;
   background-color: var(--tg-theme-button-color, #2481cc);
   color: var(--tg-theme-button-text-color, #fff);
@@ -607,7 +618,7 @@ onBeforeUnmount(() => {
 }
 
 .back-btn {
-  margin-top: 10px;
+  margin-top: 5px;
 }
 
 /* Editor View Layout */
@@ -615,11 +626,11 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 600px;
-  height: 90vh;
+  max-width: 500px;
+  height: 85vh;
   padding: 10px;
   box-sizing: border-box;
-  gap: 12px;
+  gap: 10px;
 }
 
 .editor-header {
@@ -630,9 +641,9 @@ onBeforeUnmount(() => {
 }
 
 .compact-btn {
-  padding: 6px 12px;
-  font-size: 14px;
-  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 13px;
+  border-radius: 6px;
   margin: 0;
 }
 
@@ -642,9 +653,9 @@ onBeforeUnmount(() => {
 }
 
 .tab-btn {
-  padding: 6px 16px;
-  font-size: 14px;
-  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 13px;
+  border-radius: 6px;
   margin: 0;
   cursor: pointer;
 }
@@ -697,14 +708,14 @@ onBeforeUnmount(() => {
   position: absolute;
   bottom: 12px;
   right: 12px;
-  width: 90px;
-  height: 90px;
+  width: 80px;
+  height: 80px;
   display: grid;
   grid-template-areas:
     ".    up    ."
     "left .     right"
     ".    down  .";
-  gap: 4px;
+  gap: 2px;
   z-index: 50;
 }
 
@@ -715,15 +726,15 @@ onBeforeUnmount(() => {
   padding: 0;
   margin: 0;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(4px);
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
 }
 
 .d-pad-btn:active {
@@ -743,19 +754,19 @@ onBeforeUnmount(() => {
   right: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   z-index: 50;
 }
 
 .zoom-btn {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: rgba(30, 30, 30, 0.75);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: bold;
   display: flex;
   align-items: center;
@@ -809,9 +820,9 @@ onBeforeUnmount(() => {
 .editor-actions button {
   flex: 1;
   margin: 0;
-  padding: 12px;
-  border-radius: 10px;
-  font-size: 15px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 600;
 }
 
